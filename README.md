@@ -137,33 +137,71 @@ Because `emocxx` operates as a transparent compiler proxy and source transpiler 
 
 ---
 
-## Building emocxx
+## Installation
+
+### Option 1: Cargo Install (Recommended for Rust users)
+
+Installs the `emocxx` binary directly into `~/.cargo/bin` (ensure it is in your `$PATH`):
 
 ```bash
-cargo build --release
+cargo install --git https://github.com/leofltt/emocxx
 ```
 
-The resulting binary will be in `target/release/emocxx`.
+### Option 2: Precompiled Binaries (GitHub Releases)
+
+Download the standalone archive for your platform from [GitHub Releases](https://github.com/leofltt/emocxx/releases):
+
+- **Linux (x86_64 glibc)**: `emocxx-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz`
+- **Linux (x86_64 static musl)**: `emocxx-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz`
+- **macOS Apple Silicon (M1/M2/M3/M4)**: `emocxx-vX.Y.Z-aarch64-apple-darwin.tar.gz`
+- **macOS Intel**: `emocxx-vX.Y.Z-x86_64-apple-darwin.tar.gz`
+
+Extract the tarball and move `emocxx` to your `$PATH` (e.g. `/usr/local/bin` or `~/.local/bin`).
+
+### Option 3: Build from Source Locally
+
+```bash
+git clone https://github.com/leofltt/emocxx.git
+cd emocxx
+cargo build --release
+```
+The resulting binary will be at `target/release/emocxx`.
 
 ---
 
 ## CMake Integration
 
-### Method 1: Using the Bundled Toolchain
+Integrating `emocxx` into an existing CMake project requires **zero modifications** to your `CMakeLists.txt`.
+
+### Method 1: Direct CLI Flag (Recommended)
+
+When `emocxx` is in your `$PATH`, configure your project and forward your desired host compiler (`clang++` or `g++`):
 
 ```bash
-cmake -B build \
-  -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
+cmake -B build -G Ninja \
+  -DCMAKE_CXX_COMPILER=emocxx \
   -DREAL_CXX=clang++
 
 cmake --build build
 ```
 
-### Method 2: Direct Command Line Invocation
+Or via environment variables:
 
 ```bash
-cmake -B build \
-  -DCMAKE_CXX_COMPILER=$PWD/target/release/emocxx \
+export CXX=emocxx
+export REAL_CXX=clang++
+
+cmake -B build -G Ninja
+cmake --build build
+```
+
+### Method 2: Using the Bundled CMake Toolchain
+
+If you vendor or submodule `emocxx` inside your project tree (e.g. `third_party/emocxx`):
+
+```bash
+cmake -B build -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=third_party/emocxx/cmake/emocxx-toolchain.cmake \
   -DREAL_CXX=clang++
 
 cmake --build build
