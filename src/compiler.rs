@@ -219,16 +219,27 @@ impl CompilerInvocation {
 /// Discovers the host C++ compiler, avoiding recursive self-invocation.
 fn resolve_real_compiler(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     if let Some(path) = explicit {
-        if path.exists() {
+        if path.is_file() {
             return Ok(path);
         }
-        return Err(format!("Specified --real-cxx does not exist: {}", path.display()));
+        if let Some(name) = path.to_str() {
+            if let Ok(resolved) = which::which(name) {
+                return Ok(resolved);
+            }
+        }
+        return Err(format!(
+            "Specified --real-cxx does not exist or is not in PATH: {}",
+            path.display()
+        ));
     }
 
     if let Ok(env_cxx) = env::var("EMOCXX_REAL_CXX").or_else(|_| env::var("REAL_CXX")) {
-        let p = PathBuf::from(env_cxx);
-        if p.exists() {
+        let p = PathBuf::from(&env_cxx);
+        if p.is_file() {
             return Ok(p);
+        }
+        if let Ok(resolved) = which::which(&env_cxx) {
+            return Ok(resolved);
         }
     }
 

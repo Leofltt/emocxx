@@ -125,8 +125,10 @@ Because `emocxx` operates as a transparent compiler proxy and source transpiler 
 | **Debugger Variable Print** | ⚠️ **Mangled Name** | LLDB/GDB prints `_EMO_1f680_ = 42` instead of `🚀 = 42` without a demangler script. |
 | **Macro Stringification (`#x`)** | ⚠️ **Mangled Name** | `#define STR(x) #x` evaluates `STR(🚀)` to `"_EMO_1f680_"`, not `"🚀"`. |
 | **Compiler Introspection (`__func__`)**| ⚠️ **Mangled Name** | `__func__` and `std::source_location` report the mangled ASCII symbol name. |
-| **Custom Emoji Operators (`a ➕ b`)** | ❌ **Unsupported** | C++ operator grammar is a fixed keyword set; emojis cannot create new operators. |
+| **Custom Emoji Operators (`a ➕ b`)** | ❌ **Unsupported\*** | C++ operator grammar is a fixed keyword set; emojis cannot create new operators. |
 | **Public API Headers (Unwrapped)** | ❌ **Unsupported** | External consumers compiling without `emocxx` will hit compiler lexical errors. |
+
+*\*Future RFC: Rewriting binary AST trees to turn `a ➕ b` into `a + b` via unholy preprocessor hacks is left as an exercise to the reader.*
 
 ---
 
@@ -184,7 +186,7 @@ cmake --build tests/acceptance/build
 ./tests/acceptance/build/test_app
 ```
 
-3. Verify LLDB breakpoint fidelity on line 9 of `main.cpp`:
+4. Verify LLDB breakpoint fidelity on line 9 of `main.cpp`:
 ```bash
 lldb ./tests/acceptance/build/test_app \
   -o "breakpoint set --file main.cpp --line 9" \
@@ -217,12 +219,6 @@ Measures raw FSM lexing throughput (MB/s) across synthetic source files up to 10
 ```bash
 cargo run --release --bin bench_lexer
 ```
-
-### 3. Continuous Integration & Benchmarks (GitHub Actions)
-A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is configured:
-- Automatically runs unit tests, acceptance tests, and LLDB breakpoint validation.
-- Runs compiler benchmarks on pull requests and merges, rendering the results directly to the GitHub Actions Job Summary and publishing artifacts.
-- For detailed local setup and adding new libraries, see [`benchmarks/README.md`](benchmarks/README.md).
 
 ### 3. Continuous Integration & Benchmarks (GitHub Actions)
 A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is configured:

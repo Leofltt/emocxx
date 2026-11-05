@@ -1,14 +1,14 @@
 # emocxx-toolchain.cmake
 # Toolchain script forwarding compiler invocations through the emocxx transpiler proxy.
 
-if(NOT DEFINED REAL_CXX)
-    if(DEFINED ENV{REAL_CXX})
-        set(REAL_CXX "$ENV{REAL_CXX}")
-    elseif(DEFINED ENV{EMOCXX_REAL_CXX})
-        set(REAL_CXX "$ENV{EMOCXX_REAL_CXX}")
-    else()
-        find_program(REAL_CXX NAMES clang++ g++ REQUIRED)
-    endif()
+if(DEFINED REAL_CXX)
+    find_program(RESOLVED_REAL_CXX NAMES "${REAL_CXX}" REQUIRED)
+elseif(DEFINED ENV{REAL_CXX})
+    find_program(RESOLVED_REAL_CXX NAMES "$ENV{REAL_CXX}" REQUIRED)
+elseif(DEFINED ENV{EMOCXX_REAL_CXX})
+    find_program(RESOLVED_REAL_CXX NAMES "$ENV{EMOCXX_REAL_CXX}" REQUIRED)
+else()
+    find_program(RESOLVED_REAL_CXX NAMES clang++ g++ REQUIRED)
 endif()
 
 if(NOT DEFINED EMOCXX_BIN)
@@ -16,6 +16,6 @@ if(NOT DEFINED EMOCXX_BIN)
 endif()
 
 set(CMAKE_CXX_COMPILER "${EMOCXX_BIN}")
-set(CMAKE_CXX_COMPILER_ARG1 "--real-cxx=${REAL_CXX}")
+set(CMAKE_CXX_COMPILER_ARG1 "--real-cxx=${RESOLVED_REAL_CXX}")
 set(CMAKE_CXX_COMPILER_FORCED TRUE)
 
