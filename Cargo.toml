@@ -1,0 +1,13 @@
+[package]
+name = "emocxx"
+version = "0.1.0"
+edition = "2021"
+authors = ["Open Source Systems Architecture"]
+description = "Transparent C++ compiler proxy transpiling Unicode emoji identifiers to valid C++ ASCII tokens"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+unicode-segmentation = "1.12.0"
+
+[dev-dependencies]
+

@@ -66,3 +66,23 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Rust
+target/
+**/*.rs.bk
+
+# emocxx cache
+.emocxx_cache/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Documentation PDFs
+*.pdf
