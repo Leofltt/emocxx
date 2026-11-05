@@ -45,12 +45,6 @@ LIBRARIES = {
         "cmake_args": ["-DSIMDJSON_DEVELOPER_MODE=OFF"],
         "touch_file": "src/simdjson.cpp",
     },
-    "abseil": {
-        "url": "https://github.com/abseil/abseil-cpp.git",
-        "tag": "20240116.2",
-        "cmake_args": ["-DABSL_PROPAGATE_CXX_STD=ON", "-DBUILD_TESTING=OFF"],
-        "touch_file": "absl/strings/str_cat.cc",
-    },
     "boost": {
         "local_path": "benchmarks/suites/boost_stress",
         "cmake_args": [],
@@ -136,22 +130,25 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         cmd_cmake.extend(cmake_flags)
 
         # Measure Scenario A: CMake Configure
-        ret, t_cfg, _, err = run_cmd(cmd_cmake)
+        ret, t_cfg, out_cfg, err_cfg = run_cmd(cmd_cmake)
         if ret != 0:
-            raise RuntimeError(f"CMake configure failed for {lib_name} ({mode}): {err}")
+            details = err_cfg if err_cfg.strip() else out_cfg
+            raise RuntimeError(f"CMake configure failed for {lib_name} ({mode}):\n{details}")
         cmake_times.append(t_cfg)
 
         # Measure Scenario B: Clean Build
         cmd_build = ["ninja", "-C", str(build_dir), jobs_flag]
-        ret, t_clean, _, err = run_cmd(cmd_build)
+        ret, t_clean, out_clean, err_clean = run_cmd(cmd_build)
         if ret != 0:
-            raise RuntimeError(f"Clean build failed for {lib_name} ({mode}): {err}")
+            details = err_clean if err_clean.strip() else out_clean
+            raise RuntimeError(f"Clean build failed for {lib_name} ({mode}):\n{details}")
         clean_build_times.append(t_clean)
 
         # Measure Scenario C: Zero-Change Rebuild
-        ret, t_zero, out_zero, err = run_cmd(["ninja", "-C", str(build_dir)])
+        ret, t_zero, out_zero, err_zero = run_cmd(["ninja", "-C", str(build_dir)])
         if ret != 0:
-            raise RuntimeError(f"Zero-change rebuild failed for {lib_name} ({mode}): {err}")
+            details = err_zero if err_zero.strip() else out_zero
+            raise RuntimeError(f"Zero-change rebuild failed for {lib_name} ({mode}):\n{details}")
         zero_change_times.append(t_zero)
 
         # Measure Scenario D: Incremental 1-file Touch (if configured)
@@ -159,9 +156,10 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         if touch_rel and (repo_dir / touch_rel).exists():
             target_file = repo_dir / touch_rel
             target_file.touch()
-            ret, t_touch, _, err = run_cmd(cmd_build)
+            ret, t_touch, out_touch, err_touch = run_cmd(cmd_build)
             if ret != 0:
-                raise RuntimeError(f"Touch rebuild failed for {lib_name} ({mode}): {err}")
+                details = err_touch if err_touch.strip() else out_touch
+                raise RuntimeError(f"Touch rebuild failed for {lib_name} ({mode}):\n{details}")
             touch_times.append(t_touch)
 
     return {

@@ -63,7 +63,6 @@ Results will be printed to stdout and saved to `benchmarks/results/latest_report
 | **`spdlog`** | 1.13.0 | Multi-threaded logging | Deep include tree and header shadowing |
 | **`json`** | 3.11.3 | Header-heavy modern C++ | Massive template metaprogramming |
 | **`simdjson`** | 3.8.0 | Vectorized JSON parser | Modern C++20 standard compliance |
-| **`abseil`** | 20240116.2 | Enterprise multi-TU library (150+ TUs) | Large-scale multi-file build graph & depfile rewriting |
 | **`boost`** | Latest | Asio, Beast, Spirit X3, MP11 | Extreme template depth, nested includes, and macro expansion |
 
 ---

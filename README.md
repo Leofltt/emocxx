@@ -31,7 +31,10 @@ error: unexpected character <U+1F680>
 ## Grapheme Mangling Specification
 
 To comply with standard C++ identifier rules (`^[a-zA-Z_][a-zA-Z0-9_]*$`) and prevent namespace collisions, tokens are mangled using the schema:
-$$\texttt{\_EMO\_<codepoints\_hex>\_}$$
+
+```text
+_EMO_<codepoints_hex>_
+```
 
 | Emoji Input | Unicode Codepoints | Mangled C++ Token | Handling Mechanism |
 | :--- | :--- | :--- | :--- |
@@ -46,6 +49,7 @@ $$\texttt{\_EMO\_<codepoints\_hex>\_}$$
 ## Quick Example
 
 ### Header (`include/engine.hpp`)
+
 ```cpp
 #pragma once
 
@@ -56,6 +60,7 @@ struct 📦 {
 ```
 
 ### Source (`src/main.cpp`)
+
 ```cpp
 #include <iostream>
 #include "engine.hpp"
@@ -103,8 +108,8 @@ template<📏 📦>
 class 🏭 { 📦 product; };
 
 // 5. User-Defined Literals (UDL)
-constexpr long double operator""_🚀(long double km) { return km * 1000.0; }
-auto distance = 5.0_🚀;
+constexpr long double operator""_🚗(long double km) { return km * 1000.0; }
+auto distance = 5.0_🚗;
 ```
 
 ---
@@ -119,7 +124,7 @@ Because `emocxx` operates as a transparent compiler proxy and source transpiler 
 | **Functions, Methods, Constructors** | ✅ **Fully Supported** | Compiles to standard Itanium/MSVC mangled symbols. |
 | **Namespaces & Enum Classes** | ✅ **Fully Supported** | Scoped access (e.g. `🌌::🚀()`, `🚦::🟢`) works natively. |
 | **Templates & Concepts (C++20)** | ✅ **Fully Supported** | Valid across template parameter and concept constraint positions. |
-| **User-Defined Literals (`42_🚀`)** | ✅ **Fully Supported** | Supported via `operator""__EMO_..._` syntax. |
+| **User-Defined Literals (`42_🚗`)** | ✅ **Fully Supported** | Supported via `operator""__EMO_..._` syntax. |
 | **Filenames & `#include "📦.hpp"`** | ✅ **Fully Supported** | Mirrored into shadow cache with ASCII aliases; `#line 1` preserves file names. |
 | **Debugger Stepping (GDB/LLDB)** | ✅ **Fully Supported** | Breakpoints set by source file and line (`b 🚀.cpp:9`) resolve 1:1. |
 | **Debugger Variable Print** | ⚠️ **Mangled Name** | LLDB/GDB prints `_EMO_1f680_ = 42` instead of `🚀 = 42` without a demangler script. |
@@ -145,6 +150,7 @@ The resulting binary will be in `target/release/emocxx`.
 ## CMake Integration
 
 ### Method 1: Using the Bundled Toolchain
+
 ```bash
 cmake -B build \
   -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
@@ -154,6 +160,7 @@ cmake --build build
 ```
 
 ### Method 2: Direct Command Line Invocation
+
 ```bash
 cmake -B build \
   -DCMAKE_CXX_COMPILER=$PWD/target/release/emocxx \
@@ -167,16 +174,19 @@ cmake --build build
 ## Running Acceptance Tests & Debugger Validation
 
 1. Run unit tests:
+
 ```bash
 cargo test
 ```
 
 2. Build release binary:
+
 ```bash
 cargo build --release
 ```
 
 3. Configure and build the acceptance test:
+
 ```bash
 cmake -B tests/acceptance/build -S tests/acceptance \
   -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
@@ -187,6 +197,7 @@ cmake --build tests/acceptance/build
 ```
 
 4. Verify LLDB breakpoint fidelity on line 9 of `main.cpp`:
+
 ```bash
 lldb ./tests/acceptance/build/test_app \
   -o "breakpoint set --file main.cpp --line 9" \
@@ -201,6 +212,7 @@ lldb ./tests/acceptance/build/test_app \
 An automated benchmark harness is provided in `benchmarks/` to measure compilation latency and compare baseline compiler performance against `emocxx`:
 
 ### 1. Library Benchmarking Suite
+
 Tests real-world C++ libraries (`fmt`, `spdlog`, `nlohmann/json`, `simdjson`) across cold builds, warm rebuilds, and incremental touches:
 
 ```bash
@@ -214,6 +226,7 @@ python3 benchmarks/runner.py --library all
 Results and comparison tables are saved to `benchmarks/results/latest_report.md`.
 
 ### 2. Lexer Throughput Microbenchmark
+
 Measures raw FSM lexing throughput (MB/s) across synthetic source files up to 100,000 lines with high emoji densities:
 
 ```bash
@@ -221,7 +234,9 @@ cargo run --release --bin bench_lexer
 ```
 
 ### 3. Continuous Integration & Benchmarks (GitHub Actions)
+
 A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is configured:
+
 - Automatically runs unit tests, acceptance tests, and LLDB breakpoint validation.
 - Runs compiler benchmarks on pull requests and merges, rendering the results directly to the GitHub Actions Job Summary and publishing artifacts.
 - For detailed local setup and adding new libraries, see [`benchmarks/README.md`](benchmarks/README.md).

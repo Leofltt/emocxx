@@ -107,14 +107,24 @@ impl ShadowCache {
     ) -> std::io::Result<()> {
         let content = fs::read_to_string(header_path)?;
 
+        let rel_path = header_path
+            .strip_prefix(base_dir)
+            .unwrap_or_else(|_| header_path.file_name().map(Path::new).unwrap_or(header_path));
+
+        let rel_str = rel_path.to_string_lossy();
+        let has_emoji_name = rel_str.chars().any(crate::mangler::is_emoji_codepoint);
+        let has_emoji_content = content.chars().any(crate::mangler::is_emoji_codepoint);
+
+        // Optimization & safety: only shadow headers that actually contain emojis in filename or content.
+        // Standard headers are resolved directly from original include directories without cache contention.
+        if !has_emoji_name && !has_emoji_content {
+            return Ok(());
+        }
+
         // Compute hash of the raw content
         let mut hasher = DefaultHasher::new();
         content.hash(&mut hasher);
         let hash = hasher.finish();
-
-        let rel_path = header_path
-            .strip_prefix(base_dir)
-            .unwrap_or_else(|_| header_path.file_name().map(Path::new).unwrap_or(header_path));
 
         let dest_path = shadow_inc.join(rel_path);
         let hash_path = dest_path.with_extension(format!(
@@ -123,7 +133,6 @@ impl ShadowCache {
         ));
 
         // Also compute emoji-mangled alias path for emojis in filenames
-        let rel_str = rel_path.to_string_lossy();
         let mangled_rel_str = crate::mangler::mangle_emojis_in_identifier(&rel_str);
         let mangled_dest = shadow_inc.join(&mangled_rel_str);
 
@@ -149,7 +158,11 @@ impl ShadowCache {
             fs::create_dir_all(parent)?;
         }
 
-        fs::write(&dest_path, &transpiled)?;
+        // Atomic write via temp file
+        let pid = std::process::id();
+        let tmp_path = dest_path.with_extension(format!("tmp.{}", pid));
+        fs::write(&tmp_path, &transpiled)?;
+        let _ = fs::rename(&tmp_path, &dest_path);
         let _ = fs::write(&hash_path, hash.to_string());
 
         // Write mangled alias if filename contains emojis
@@ -157,7 +170,9 @@ impl ShadowCache {
             if let Some(parent) = mangled_dest.parent() {
                 fs::create_dir_all(parent)?;
             }
-            let _ = fs::write(&mangled_dest, &transpiled);
+            let tmp_alias = mangled_dest.with_extension(format!("tmp.alias.{}", pid));
+            let _ = fs::write(&tmp_alias, &transpiled);
+            let _ = fs::rename(&tmp_alias, &mangled_dest);
         }
 
         Ok(())

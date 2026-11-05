@@ -306,16 +306,16 @@ class _EMO_1f3ed_ {
 #[test]
 fn test_user_defined_literals() {
     let code = r#"
-constexpr long double operator""_🚀(long double km) {
+constexpr long double operator""_🚗(long double km) {
     return km * 1000.0;
 }
-auto dist = 5.0_🚀;
+auto dist = 5.0_🚗;
     "#;
     let expected = r#"
-constexpr long double operator""__EMO_1f680_(long double km) {
+constexpr long double operator""__EMO_1f697_(long double km) {
     return km * 1000.0;
 }
-auto dist = 5.0__EMO_1f680_;
+auto dist = 5.0__EMO_1f697_;
     "#;
     assert_eq!(transpile(code), expected);
 }
