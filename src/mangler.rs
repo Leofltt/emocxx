@@ -1,11 +1,11 @@
 //! Unicode emoji and symbol mangling logic according to emocxx specification.
 //!
-//! Mangling schema: `_EMO_<codepoints_hex>_`
+//! Mangling schema: `EMO_<codepoints_hex>_JI`
 //! Examples:
-//! - 🚀 (U+1F680) -> `_EMO_1f680_`
-//! - 🏎️ (U+1F3CE, U+FE0F) -> `_EMO_1f3ce_fe0f_`
-//! - 👍🏽 (U+1F44D, U+1F3FD) -> `_EMO_1f44d_1f3fd_`
-//! - 👨‍💻 (U+1F468, U+200D, U+1F4BB) -> `_EMO_1f468_200d_1f4bb_`
+//! - 🚀 (U+1F680) -> `EMO_1f680_JI`
+//! - 🏎️ (U+1F3CE, U+FE0F) -> `EMO_1f3ce_fe0f_JI`
+//! - 👍🏽 (U+1F44D, U+1F3FD) -> `EMO_1f44d_1f3fd_JI`
+//! - 👨‍💻 (U+1F468, U+200D, U+1F4BB) -> `EMO_1f468_200d_1f4bb_JI`
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -37,9 +37,9 @@ pub fn is_emoji_grapheme(grapheme: &str) -> bool {
 }
 
 /// Mangles an emoji grapheme cluster into a C++ compliant ASCII identifier.
-/// Format: `_EMO_<hex1>_<hex2>_..._` with lowercase hex.
+/// Format: `EMO_<hex1>_<hex2>_..._JI` with lowercase hex.
 pub fn mangle_grapheme(grapheme: &str) -> String {
-    let mut mangled = String::from("_EMO_");
+    let mut mangled = String::from("EMO_");
     let mut first = true;
     for c in grapheme.chars() {
         if !first {
@@ -48,7 +48,7 @@ pub fn mangle_grapheme(grapheme: &str) -> String {
         mangled.push_str(&format!("{:x}", c as u32));
         first = false;
     }
-    mangled.push('_');
+    mangled.push_str("_JI");
     mangled
 }
 
@@ -71,32 +71,32 @@ mod tests {
 
     #[test]
     fn test_single_scalar_symbol() {
-        assert_eq!(mangle_grapheme("🚀"), "_EMO_1f680_");
-        assert_eq!(mangle_grapheme("📦"), "_EMO_1f4e6_");
-        assert_eq!(mangle_grapheme("💰"), "_EMO_1f4b0_");
-        assert_eq!(mangle_grapheme("💥"), "_EMO_1f4a5_");
-        assert_eq!(mangle_grapheme("🎯"), "_EMO_1f3af_");
-        assert_eq!(mangle_grapheme("🎁"), "_EMO_1f381_");
+        assert_eq!(mangle_grapheme("🚀"), "EMO_1f680_JI");
+        assert_eq!(mangle_grapheme("📦"), "EMO_1f4e6_JI");
+        assert_eq!(mangle_grapheme("💰"), "EMO_1f4b0_JI");
+        assert_eq!(mangle_grapheme("💥"), "EMO_1f4a5_JI");
+        assert_eq!(mangle_grapheme("🎯"), "EMO_1f3af_JI");
+        assert_eq!(mangle_grapheme("🎁"), "EMO_1f381_JI");
     }
 
     #[test]
     fn test_variation_selector_preserved() {
         // 🏎️ U+1F3CE, U+FE0F
-        assert_eq!(mangle_grapheme("🏎️"), "_EMO_1f3ce_fe0f_");
+        assert_eq!(mangle_grapheme("🏎️"), "EMO_1f3ce_fe0f_JI");
         // ⚖️ U+2696, U+FE0F
-        assert_eq!(mangle_grapheme("⚖️"), "_EMO_2696_fe0f_");
+        assert_eq!(mangle_grapheme("⚖️"), "EMO_2696_fe0f_JI");
     }
 
     #[test]
     fn test_skin_tone_modifier() {
         // 👍🏽 U+1F44D, U+1F3FD
-        assert_eq!(mangle_grapheme("👍🏽"), "_EMO_1f44d_1f3fd_");
+        assert_eq!(mangle_grapheme("👍🏽"), "EMO_1f44d_1f3fd_JI");
     }
 
     #[test]
     fn test_zero_width_joiner_sequence() {
         // 👨‍💻 U+1F468, U+200D, U+1F4BB
-        assert_eq!(mangle_grapheme("👨‍💻"), "_EMO_1f468_200d_1f4bb_");
+        assert_eq!(mangle_grapheme("👨‍💻"), "EMO_1f468_200d_1f4bb_JI");
     }
 }
 

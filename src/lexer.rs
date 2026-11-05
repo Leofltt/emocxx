@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn test_mangling_in_normal_code() {
         let src = "int 🚀 = 2;\nauto 💥 = 🎁.💰 * 🚀;";
-        let expected = "int _EMO_1f680_ = 2;\nauto _EMO_1f4a5_ = _EMO_1f381_._EMO_1f4b0_ * _EMO_1f680_;";
+        let expected = "int EMO_1f680_JI = 2;\nauto EMO_1f4a5_JI = EMO_1f381_JI.EMO_1f4b0_JI * EMO_1f680_JI;";
         assert_eq!(transpile(src), expected);
     }
 
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_acceptance_header_transpilation() {
         let header = "// include/engine.hpp\n#pragma once\nstruct 📦 {\n    int 💰;\n    int ⚖️;\n};\n";
-        let expected = "// include/engine.hpp\n#pragma once\nstruct _EMO_1f4e6_ {\n    int _EMO_1f4b0_;\n    int _EMO_2696_fe0f_;\n};\n";
+        let expected = "// include/engine.hpp\n#pragma once\nstruct EMO_1f4e6_JI {\n    int EMO_1f4b0_JI;\n    int EMO_2696_fe0f_JI;\n};\n";
         assert_eq!(transpile(header), expected);
     }
 
@@ -320,12 +320,12 @@ int main() {
 #include "engine.hpp"
 
 int main() {
-    _EMO_1f4e6_ _EMO_1f381_{ ._EMO_1f4b0_ = 500, ._EMO_2696_fe0f_ = 20 };
-    int _EMO_1f680_ = 2;
-    auto _EMO_1f4a5_ = _EMO_1f381_._EMO_1f4b0_ * _EMO_1f680_;
+    EMO_1f4e6_JI EMO_1f381_JI{ .EMO_1f4b0_JI = 500, .EMO_2696_fe0f_JI = 20 };
+    int EMO_1f680_JI = 2;
+    auto EMO_1f4a5_JI = EMO_1f381_JI.EMO_1f4b0_JI * EMO_1f680_JI;
 
-    std::cout << "Calculated Score: " << _EMO_1f4a5_ << " 🎯\n";
-    return (_EMO_1f4a5_ == 1000) ? 0 : 1;
+    std::cout << "Calculated Score: " << EMO_1f4a5_JI << " 🎯\n";
+    return (EMO_1f4a5_JI == 1000) ? 0 : 1;
 }
 "#;
         assert_eq!(transpile(src), expected);

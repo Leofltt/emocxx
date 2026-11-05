@@ -4,32 +4,32 @@ use std::path::Path;
 
 #[test]
 fn test_mangling_single_scalars() {
-    assert_eq!(mangle_grapheme("🚀"), "_EMO_1f680_");
-    assert_eq!(mangle_grapheme("📦"), "_EMO_1f4e6_");
-    assert_eq!(mangle_grapheme("💰"), "_EMO_1f4b0_");
-    assert_eq!(mangle_grapheme("💥"), "_EMO_1f4a5_");
-    assert_eq!(mangle_grapheme("🎯"), "_EMO_1f3af_");
-    assert_eq!(mangle_grapheme("🎁"), "_EMO_1f381_");
+    assert_eq!(mangle_grapheme("🚀"), "EMO_1f680_JI");
+    assert_eq!(mangle_grapheme("📦"), "EMO_1f4e6_JI");
+    assert_eq!(mangle_grapheme("💰"), "EMO_1f4b0_JI");
+    assert_eq!(mangle_grapheme("💥"), "EMO_1f4a5_JI");
+    assert_eq!(mangle_grapheme("🎯"), "EMO_1f3af_JI");
+    assert_eq!(mangle_grapheme("🎁"), "EMO_1f381_JI");
 }
 
 #[test]
 fn test_mangling_variation_selectors() {
     // 🏎️ U+1F3CE, U+FE0F
-    assert_eq!(mangle_grapheme("🏎️"), "_EMO_1f3ce_fe0f_");
+    assert_eq!(mangle_grapheme("🏎️"), "EMO_1f3ce_fe0f_JI");
     // ⚖️ U+2696, U+FE0F
-    assert_eq!(mangle_grapheme("⚖️"), "_EMO_2696_fe0f_");
+    assert_eq!(mangle_grapheme("⚖️"), "EMO_2696_fe0f_JI");
 }
 
 #[test]
 fn test_mangling_skin_tone_modifiers() {
     // 👍🏽 U+1F44D, U+1F3FD
-    assert_eq!(mangle_grapheme("👍🏽"), "_EMO_1f44d_1f3fd_");
+    assert_eq!(mangle_grapheme("👍🏽"), "EMO_1f44d_1f3fd_JI");
 }
 
 #[test]
 fn test_mangling_zero_width_joiner_sequences() {
     // 👨‍💻 U+1F468, U+200D, U+1F4BB
-    assert_eq!(mangle_grapheme("👨‍💻"), "_EMO_1f468_200d_1f4bb_");
+    assert_eq!(mangle_grapheme("👨‍💻"), "EMO_1f468_200d_1f4bb_JI");
 }
 
 #[test]
@@ -82,9 +82,9 @@ fn test_variable_declarations_and_expressions() {
         auto 💥 = 🚀 * 🏎️;
     "#;
     let expected = r#"
-        int _EMO_1f680_ = 42;
-        int _EMO_1f3ce_fe0f_ = 100;
-        auto _EMO_1f4a5_ = _EMO_1f680_ * _EMO_1f3ce_fe0f_;
+        int EMO_1f680_JI = 42;
+        int EMO_1f3ce_fe0f_JI = 100;
+        auto EMO_1f4a5_JI = EMO_1f680_JI * EMO_1f3ce_fe0f_JI;
     "#;
     assert_eq!(transpile(code), expected);
 }
@@ -100,9 +100,9 @@ struct 📦 {
 "#;
     let expected = r#"
 #pragma once
-struct _EMO_1f4e6_ {
-    int _EMO_1f4b0_;
-    int _EMO_2696_fe0f_;
+struct EMO_1f4e6_JI {
+    int EMO_1f4b0_JI;
+    int EMO_2696_fe0f_JI;
 };
 "#;
     assert_eq!(transpile(header), expected);
@@ -117,8 +117,8 @@ template<typename 📦>
 }
 "#;
     let expected = r#"
-template<typename _EMO_1f4e6_>
-_EMO_1f4e6_ _EMO_1f680_(_EMO_1f4e6_ x) {
+template<typename EMO_1f4e6_JI>
+EMO_1f4e6_JI EMO_1f680_JI(EMO_1f4e6_JI x) {
     return x;
 }
 "#;
@@ -136,9 +136,9 @@ struct 📦 {
 
     let expected_header = r#"// include/engine.hpp
 #pragma once
-struct _EMO_1f4e6_ {
-    int _EMO_1f4b0_;
-    int _EMO_2696_fe0f_;
+struct EMO_1f4e6_JI {
+    int EMO_1f4b0_JI;
+    int EMO_2696_fe0f_JI;
 };"#;
     assert_eq!(transpile(header), expected_header);
 
@@ -160,12 +160,12 @@ int main() {
 #include "engine.hpp"
 
 int main() {
-    _EMO_1f4e6_ _EMO_1f381_{ ._EMO_1f4b0_ = 500, ._EMO_2696_fe0f_ = 20 };
-    int _EMO_1f680_ = 2;
-    auto _EMO_1f4a5_ = _EMO_1f381_._EMO_1f4b0_ * _EMO_1f680_;
+    EMO_1f4e6_JI EMO_1f381_JI{ .EMO_1f4b0_JI = 500, .EMO_2696_fe0f_JI = 20 };
+    int EMO_1f680_JI = 2;
+    auto EMO_1f4a5_JI = EMO_1f381_JI.EMO_1f4b0_JI * EMO_1f680_JI;
 
-    std::cout << "Calculated Score: " << _EMO_1f4a5_ << " 🎯\n";
-    return (_EMO_1f4a5_ == 1000) ? 0 : 1;
+    std::cout << "Calculated Score: " << EMO_1f4a5_JI << " 🎯\n";
+    return (EMO_1f4a5_JI == 1000) ? 0 : 1;
 }"#;
     assert_eq!(transpile(main_cpp), expected_main);
 }
@@ -176,7 +176,7 @@ fn test_line_directive_generation() {
     let path = Path::new("test_src.cpp");
     let result = transpile_source(code, Some(path));
     assert!(result.starts_with("#line 1 "));
-    assert!(result.contains("int _EMO_1f680_ = 1;\n"));
+    assert!(result.contains("int EMO_1f680_JI = 1;\n"));
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn test_emoji_in_include_directives() {
 #include <iostream>
 "#;
     let expected = r#"
-#include "_EMO_1f4e6_.hpp"
-#include <my__EMO_1f680_/engine.hpp>
+#include "EMO_1f4e6_JI.hpp"
+#include <my_EMO_1f680_JI/engine.hpp>
 #include "engine.hpp"
 #include <iostream>
 "#;
@@ -218,13 +218,13 @@ private:
 };
     "#;
     let expected = r#"
-class _EMO_1f916_ {
+class EMO_1f916_JI {
 public:
-    _EMO_1f916_() : _EMO_1f50b_(100) {}
-    ~_EMO_1f916_() {}
-    void _EMO_26a1_() { _EMO_1f50b_ += 10; }
+    EMO_1f916_JI() : EMO_1f50b_JI(100) {}
+    ~EMO_1f916_JI() {}
+    void EMO_26a1_JI() { EMO_1f50b_JI += 10; }
 private:
-    int _EMO_1f50b_;
+    int EMO_1f50b_JI;
 };
     "#;
     assert_eq!(transpile(code), expected);
@@ -241,11 +241,11 @@ int main() {
 }
     "#;
     let expected = r#"
-namespace _EMO_1f30c_ {
-    void _EMO_1f680_() {}
+namespace EMO_1f30c_JI {
+    void EMO_1f680_JI() {}
 }
 int main() {
-    _EMO_1f30c_::_EMO_1f680_();
+    EMO_1f30c_JI::EMO_1f680_JI();
 }
     "#;
     assert_eq!(transpile(code), expected);
@@ -262,12 +262,12 @@ enum class 🚦 {
 auto state = 🚦::🟢;
     "#;
     let expected = r#"
-enum class _EMO_1f6a6_ {
-    _EMO_1f534_,
-    _EMO_1f7e1_,
-    _EMO_1f7e2_,
+enum class EMO_1f6a6_JI {
+    EMO_1f534_JI,
+    EMO_1f7e1_JI,
+    EMO_1f7e2_JI,
 };
-auto state = _EMO_1f6a6_::_EMO_1f7e2_;
+auto state = EMO_1f6a6_JI::EMO_1f7e2_JI;
     "#;
     assert_eq!(transpile(code), expected);
 }
@@ -288,16 +288,16 @@ class 🏭 {
 };
     "#;
     let expected = r#"
-using _EMO_1f522_ = int;
+using EMO_1f522_JI = int;
 
-template<typename _EMO_1f4e6_>
-concept _EMO_1f4cf_ = requires(_EMO_1f4e6_ item) {
-    item._EMO_1f4d0_();
+template<typename EMO_1f4e6_JI>
+concept EMO_1f4cf_JI = requires(EMO_1f4e6_JI item) {
+    item.EMO_1f4d0_JI();
 };
 
-template<_EMO_1f4cf_ _EMO_1f4e6_>
-class _EMO_1f3ed_ {
-    _EMO_1f4e6_ product;
+template<EMO_1f4cf_JI EMO_1f4e6_JI>
+class EMO_1f3ed_JI {
+    EMO_1f4e6_JI product;
 };
     "#;
     assert_eq!(transpile(code), expected);
@@ -312,10 +312,10 @@ constexpr long double operator""_🚗(long double km) {
 auto dist = 5.0_🚗;
     "#;
     let expected = r#"
-constexpr long double operator""__EMO_1f697_(long double km) {
+constexpr long double operator""_EMO_1f697_JI(long double km) {
     return km * 1000.0;
 }
-auto dist = 5.0__EMO_1f697_;
+auto dist = 5.0_EMO_1f697_JI;
     "#;
     assert_eq!(transpile(code), expected);
 }

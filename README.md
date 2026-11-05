@@ -30,18 +30,18 @@ error: unexpected character <U+1F680>
 
 ## Grapheme Mangling Specification
 
-To comply with standard C++ identifier rules (`^[a-zA-Z_][a-zA-Z0-9_]*$`) and prevent namespace collisions, tokens are mangled using the schema:
+To comply with standard C++ identifier rules (`^[a-zA-Z_][a-zA-Z0-9_]*$`), avoid C++ reserved leading/double underscores (`[lex.name]`), and prevent namespace collisions, tokens are mangled using the schema:
 
 ```text
-_EMO_<codepoints_hex>_
+EMO_<codepoints_hex>_JI
 ```
 
 | Emoji Input | Unicode Codepoints | Mangled C++ Token | Handling Mechanism |
 | :--- | :--- | :--- | :--- |
-| `🚀` | `U+1F680` | `_EMO_1f680_` | Single scalar symbol |
-| `🏎️` | `U+1F3CE, U+FE0F` | `_EMO_1f3ce_fe0f_` | Variation Selector-16 preserved |
-| `👍🏽` | `U+1F44D, U+1F3FD` | `_EMO_1f44d_1f3fd_` | Compound skin-tone modifier |
-| `👨‍💻` | `U+1F468, U+200D, U+1F4BB` | `_EMO_1f468_200d_1f4bb_` | Zero-Width Joiner sequence |
+| `🚀` | `U+1F680` | `EMO_1f680_JI` | Single scalar symbol |
+| `🏎️` | `U+1F3CE, U+FE0F` | `EMO_1f3ce_fe0f_JI` | Variation Selector-16 preserved |
+| `👍🏽` | `U+1F44D, U+1F3FD` | `EMO_1f44d_1f3fd_JI` | Compound skin-tone modifier |
+| `👨‍💻` | `U+1F468, U+200D, U+1F4BB` | `EMO_1f468_200d_1f4bb_JI` | Zero-Width Joiner sequence |
 | `"Rocket: 🚀"` | Literal sequence | `"Rocket: 🚀"` | String literal invariant |
 
 ---
@@ -120,15 +120,15 @@ Because `emocxx` operates as a transparent compiler proxy and source transpiler 
 
 | Language Feature / Use Case | Status | Explanation & Behavior |
 | :--- | :---: | :--- |
-| **Variables, Structs, Classes** | ✅ **Fully Supported** | Mangles deterministically to valid C++ identifiers (`_EMO_<hex>_`). |
+| **Variables, Structs, Classes** | ✅ **Fully Supported** | Mangles deterministically to valid C++ identifiers (`EMO_<hex>_JI`). |
 | **Functions, Methods, Constructors** | ✅ **Fully Supported** | Compiles to standard Itanium/MSVC mangled symbols. |
 | **Namespaces & Enum Classes** | ✅ **Fully Supported** | Scoped access (e.g. `🌌::🚀()`, `🚦::🟢`) works natively. |
 | **Templates & Concepts (C++20)** | ✅ **Fully Supported** | Valid across template parameter and concept constraint positions. |
-| **User-Defined Literals (`42_🚗`)** | ✅ **Fully Supported** | Supported via `operator""__EMO_..._` syntax. |
+| **User-Defined Literals (`42_🚗`)** | ✅ **Fully Supported** | Supported via `operator""_EMO_..._JI` syntax. |
 | **Filenames & `#include "📦.hpp"`** | ✅ **Fully Supported** | Mirrored into shadow cache with ASCII aliases; `#line 1` preserves file names. |
 | **Debugger Stepping (GDB/LLDB)** | ✅ **Fully Supported** | Breakpoints set by source file and line (`b 🚀.cpp:9`) resolve 1:1. |
-| **Debugger Variable Print** | ⚠️ **Mangled Name** | LLDB/GDB prints `_EMO_1f680_ = 42` instead of `🚀 = 42` without a demangler script. |
-| **Macro Stringification (`#x`)** | ⚠️ **Mangled Name** | `#define STR(x) #x` evaluates `STR(🚀)` to `"_EMO_1f680_"`, not `"🚀"`. |
+| **Debugger Variable Print** | ⚠️ **Mangled Name** | LLDB/GDB prints `EMO_1f680_JI = 42` instead of `🚀 = 42` without a demangler script. |
+| **Macro Stringification (`#x`)** | ⚠️ **Mangled Name** | `#define STR(x) #x` evaluates `STR(🚀)` to `"EMO_1f680_JI"`, not `"🚀"`. |
 | **Compiler Introspection (`__func__`)**| ⚠️ **Mangled Name** | `__func__` and `std::source_location` report the mangled ASCII symbol name. |
 | **Custom Emoji Operators (`a ➕ b`)** | ❌ **Unsupported\*** | C++ operator grammar is a fixed keyword set; emojis cannot create new operators. |
 | **Public API Headers (Unwrapped)** | ❌ **Unsupported** | External consumers compiling without `emocxx` will hit compiler lexical errors. |
