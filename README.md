@@ -130,6 +130,44 @@ lldb ./tests/acceptance/build/test_app \
 
 ---
 
+## Benchmarking & Performance
+
+An automated benchmark harness is provided in `benchmarks/` to measure compilation latency and compare baseline compiler performance against `emocxx`:
+
+### 1. Library Benchmarking Suite
+Tests real-world C++ libraries (`fmt`, `spdlog`, `nlohmann/json`, `simdjson`) across cold builds, warm rebuilds, and incremental touches:
+
+```bash
+# Benchmark fmt library across 3 iterations
+python3 benchmarks/runner.py --library fmt --iterations 3
+
+# Benchmark all supported libraries
+python3 benchmarks/runner.py --library all
+```
+
+Results and comparison tables are saved to `benchmarks/results/latest_report.md`.
+
+### 2. Lexer Throughput Microbenchmark
+Measures raw FSM lexing throughput (MB/s) across synthetic source files up to 100,000 lines with high emoji densities:
+
+```bash
+cargo run --release --bin bench_lexer
+```
+
+### 3. Continuous Integration & Benchmarks (GitHub Actions)
+A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is configured:
+- Automatically runs unit tests, acceptance tests, and LLDB breakpoint validation.
+- Runs compiler benchmarks on pull requests and merges, rendering the results directly to the GitHub Actions Job Summary and publishing artifacts.
+- For detailed local setup and adding new libraries, see [`benchmarks/README.md`](benchmarks/README.md).
+
+### 3. Continuous Integration & Benchmarks (GitHub Actions)
+A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is configured:
+- Automatically runs unit tests, acceptance tests, and LLDB breakpoint validation.
+- Runs compiler benchmarks on pull requests and merges, rendering the results directly to the GitHub Actions Job Summary and publishing artifacts.
+- For detailed local setup and adding new libraries, see [`benchmarks/README.md`](benchmarks/README.md).
+
+---
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0.

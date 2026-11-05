@@ -86,3 +86,7 @@ target/
 
 # Documentation PDFs
 *.pdf
+
+# Benchmark data and clones
+.benchmarks/
+benchmarks/results/
