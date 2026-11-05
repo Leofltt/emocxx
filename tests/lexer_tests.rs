@@ -179,3 +179,144 @@ fn test_line_directive_generation() {
     assert!(result.contains("int _EMO_1f680_ = 1;\n"));
 }
 
+#[test]
+fn test_emoji_in_include_directives() {
+    let code = r#"
+#include "📦.hpp"
+#include <my_🚀/engine.hpp>
+#include "engine.hpp"
+#include <iostream>
+"#;
+    let expected = r#"
+#include "_EMO_1f4e6_.hpp"
+#include <my__EMO_1f680_/engine.hpp>
+#include "engine.hpp"
+#include <iostream>
+"#;
+    assert_eq!(transpile(code), expected);
+}
+
+#[test]
+fn test_emoji_in_source_filename_line_directive() {
+    let code = "int a = 1;\n";
+    let path = Path::new("src/🚀.cpp");
+    let result = transpile_source(code, Some(path));
+    assert!(result.starts_with("#line 1 \""));
+    assert!(result.contains("🚀.cpp\""));
+}
+
+#[test]
+fn test_class_constructor_destructor_and_methods() {
+    let code = r#"
+class 🤖 {
+public:
+    🤖() : 🔋(100) {}
+    ~🤖() {}
+    void ⚡() { 🔋 += 10; }
+private:
+    int 🔋;
+};
+    "#;
+    let expected = r#"
+class _EMO_1f916_ {
+public:
+    _EMO_1f916_() : _EMO_1f50b_(100) {}
+    ~_EMO_1f916_() {}
+    void _EMO_26a1_() { _EMO_1f50b_ += 10; }
+private:
+    int _EMO_1f50b_;
+};
+    "#;
+    assert_eq!(transpile(code), expected);
+}
+
+#[test]
+fn test_namespaces_and_scoped_access() {
+    let code = r#"
+namespace 🌌 {
+    void 🚀() {}
+}
+int main() {
+    🌌::🚀();
+}
+    "#;
+    let expected = r#"
+namespace _EMO_1f30c_ {
+    void _EMO_1f680_() {}
+}
+int main() {
+    _EMO_1f30c_::_EMO_1f680_();
+}
+    "#;
+    assert_eq!(transpile(code), expected);
+}
+
+#[test]
+fn test_enums_and_enum_classes() {
+    let code = r#"
+enum class 🚦 {
+    🔴,
+    🟡,
+    🟢,
+};
+auto state = 🚦::🟢;
+    "#;
+    let expected = r#"
+enum class _EMO_1f6a6_ {
+    _EMO_1f534_,
+    _EMO_1f7e1_,
+    _EMO_1f7e2_,
+};
+auto state = _EMO_1f6a6_::_EMO_1f7e2_;
+    "#;
+    assert_eq!(transpile(code), expected);
+}
+
+#[test]
+fn test_templates_concepts_and_type_aliases() {
+    let code = r#"
+using 🔢 = int;
+
+template<typename 📦>
+concept 📏 = requires(📦 item) {
+    item.📐();
+};
+
+template<📏 📦>
+class 🏭 {
+    📦 product;
+};
+    "#;
+    let expected = r#"
+using _EMO_1f522_ = int;
+
+template<typename _EMO_1f4e6_>
+concept _EMO_1f4cf_ = requires(_EMO_1f4e6_ item) {
+    item._EMO_1f4d0_();
+};
+
+template<_EMO_1f4cf_ _EMO_1f4e6_>
+class _EMO_1f3ed_ {
+    _EMO_1f4e6_ product;
+};
+    "#;
+    assert_eq!(transpile(code), expected);
+}
+
+#[test]
+fn test_user_defined_literals() {
+    let code = r#"
+constexpr long double operator""_🚀(long double km) {
+    return km * 1000.0;
+}
+auto dist = 5.0_🚀;
+    "#;
+    let expected = r#"
+constexpr long double operator""__EMO_1f680_(long double km) {
+    return km * 1000.0;
+}
+auto dist = 5.0__EMO_1f680_;
+    "#;
+    assert_eq!(transpile(code), expected);
+}
+

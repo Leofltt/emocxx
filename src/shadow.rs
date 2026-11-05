@@ -35,20 +35,24 @@ impl ShadowCache {
     }
 
     /// Mirrors and transpiles headers from user include directories and source parent directories.
-    /// Returns the shadow include path to inject via `-iquote`.
-    pub fn mirror_headers(&self, include_dirs: &[PathBuf]) -> std::io::Result<PathBuf> {
+    /// Returns the shadow include path to inject via `-iquote` and path mappings for depfile rewriting.
+    pub fn mirror_headers(
+        &self,
+        include_dirs: &[PathBuf],
+    ) -> std::io::Result<(PathBuf, Vec<(PathBuf, PathBuf)>)> {
         let shadow_inc = self.include_dir();
         fs::create_dir_all(&shadow_inc)?;
 
         let mut visited = HashSet::new();
+        let mut mappings = Vec::new();
 
         for dir in include_dirs {
             if dir.is_dir() {
-                self.mirror_dir_recursive(dir, dir, &shadow_inc, &mut visited)?;
+                self.mirror_dir_recursive(dir, dir, &shadow_inc, &mut visited, &mut mappings)?;
             }
         }
 
-        Ok(shadow_inc)
+        Ok((shadow_inc, mappings))
     }
 
     /// Recursively scans `current_dir` and mirrors all headers to `shadow_inc`
@@ -59,6 +63,7 @@ impl ShadowCache {
         current_dir: &Path,
         shadow_inc: &Path,
         visited: &mut HashSet<PathBuf>,
+        mappings: &mut Vec<(PathBuf, PathBuf)>,
     ) -> std::io::Result<()> {
         let entries = match fs::read_dir(current_dir) {
             Ok(e) => e,
@@ -73,7 +78,7 @@ impl ShadowCache {
                 if file_name.starts_with('.') || file_name == "build" || file_name == "target" {
                     continue;
                 }
-                self.mirror_dir_recursive(base_dir, &path, shadow_inc, visited)?;
+                self.mirror_dir_recursive(base_dir, &path, shadow_inc, visited, mappings)?;
             } else if path.is_file() {
                 let ext = path
                     .extension()
@@ -83,7 +88,7 @@ impl ShadowCache {
                 if HEADER_EXTENSIONS.contains(&ext.as_str()) {
                     let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
                     if visited.insert(canonical) {
-                        self.transpile_and_cache_header(base_dir, &path, shadow_inc)?;
+                        self.transpile_and_cache_header(base_dir, &path, shadow_inc, mappings)?;
                     }
                 }
             }
@@ -98,6 +103,7 @@ impl ShadowCache {
         base_dir: &Path,
         header_path: &Path,
         shadow_inc: &Path,
+        mappings: &mut Vec<(PathBuf, PathBuf)>,
     ) -> std::io::Result<()> {
         let content = fs::read_to_string(header_path)?;
 
@@ -116,6 +122,17 @@ impl ShadowCache {
             dest_path.extension().and_then(|s| s.to_str()).unwrap_or("h")
         ));
 
+        // Also compute emoji-mangled alias path for emojis in filenames
+        let rel_str = rel_path.to_string_lossy();
+        let mangled_rel_str = crate::mangler::mangle_emojis_in_identifier(&rel_str);
+        let mangled_dest = shadow_inc.join(&mangled_rel_str);
+
+        // Record mappings for depfile sanitization
+        mappings.push((dest_path.clone(), header_path.to_path_buf()));
+        if mangled_dest != dest_path {
+            mappings.push((mangled_dest.clone(), header_path.to_path_buf()));
+        }
+
         // Check if cached file is already up to date
         if dest_path.exists() && hash_path.exists() {
             if let Ok(cached_hash_str) = fs::read_to_string(&hash_path) {
@@ -132,8 +149,16 @@ impl ShadowCache {
             fs::create_dir_all(parent)?;
         }
 
-        fs::write(&dest_path, transpiled)?;
+        fs::write(&dest_path, &transpiled)?;
         let _ = fs::write(&hash_path, hash.to_string());
+
+        // Write mangled alias if filename contains emojis
+        if mangled_dest != dest_path {
+            if let Some(parent) = mangled_dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let _ = fs::write(&mangled_dest, &transpiled);
+        }
 
         Ok(())
     }
@@ -150,10 +175,13 @@ impl ShadowCache {
         content.hash(&mut hasher);
         let hash = hasher.finish();
 
-        let file_stem = source_path
+        let raw_stem = source_path
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("source");
+        // Mangle emojis in filename stem to ensure host compiler receives pure ASCII paths
+        let file_stem = crate::mangler::mangle_emojis_in_identifier(raw_stem);
+
         let ext = source_path
             .extension()
             .and_then(|s| s.to_str())

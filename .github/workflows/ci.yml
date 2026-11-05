@@ -1,0 +1,92 @@
+name: CI & Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit & Acceptance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build cmake lldb
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Unit Tests
+        run: cargo test --verbose
+
+      - name: Build emocxx in Release Mode
+        run: cargo build --release
+
+      - name: Run Acceptance Test (CMake + Ninja)
+        run: |
+          cmake -B tests/acceptance/build -S tests/acceptance -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/emocxx-toolchain.cmake \
+            -DREAL_CXX=clang++
+          cmake --build tests/acceptance/build
+          ./tests/acceptance/build/test_app
+
+      - name: Verify Debugger Fidelity (LLDB)
+        run: |
+          lldb ./tests/acceptance/build/test_app \
+            -o "breakpoint set --file main.cpp --line 9" \
+            -o "run" \
+            -o "quit"
+
+  benchmark:
+    name: Compilation Benchmarks
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build cmake python3 git libboost-dev
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build emocxx in Release Mode
+        run: cargo build --release
+
+      - name: Run Lexer Microbenchmark
+        run: cargo run --release --bin bench_lexer
+
+      - name: Run Library Compilation Benchmarks
+        run: |
+          python3 benchmarks/runner.py --library all --iterations 3 --real-cxx clang++
+
+      - name: Publish Benchmark Summary to GitHub Action Summary
+        if: always()
+        run: |
+          if [ -f benchmarks/results/latest_report.md ]; then
+            cat benchmarks/results/latest_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Benchmark Results Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+

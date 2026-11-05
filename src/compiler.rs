@@ -163,12 +163,12 @@ impl CompilerInvocation {
         }
 
         // Mirror headers to shadow cache
-        let shadow_inc = cache
+        let (shadow_inc, header_mappings) = cache
             .mirror_headers(&all_includes)
             .map_err(|e| format!("Failed to mirror headers: {}", e))?;
 
         // Transpile sources to shadow cache
-        let mut source_mappings = Vec::new();
+        let mut all_mappings = header_mappings;
         let mut final_args = Vec::new();
 
         // Inject shadow include at the very front
@@ -182,7 +182,7 @@ impl CompilerInvocation {
                 let transpiled = cache
                     .transpile_source_file(&path)
                     .map_err(|e| format!("Failed to transpile source {}: {}", path.display(), e))?;
-                source_mappings.push((transpiled.clone(), path));
+                all_mappings.push((transpiled.clone(), path));
                 final_args.push(transpiled.to_string_lossy().to_string());
             } else {
                 final_args.push(arg.clone());
@@ -199,7 +199,7 @@ impl CompilerInvocation {
         if code == 0 {
             // Remap depfile paths if present
             if let Some(ref df) = self.depfile {
-                let _ = rewrite_depfile(df, &source_mappings);
+                let _ = rewrite_depfile(df, &all_mappings);
             }
         }
 

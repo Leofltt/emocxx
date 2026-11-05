@@ -23,6 +23,7 @@ error: unexpected character <U+1F680>
 - **Shadow Header Mirroring**: Local header dependencies (`#include "types.hpp"`) containing emoji declarations are incrementally hashed and transpiled into a build-local cache (`<build>/.emocxx_cache/include/`).
 - **Source Transparency**: Output files prepend `#line 1 "/path/to/source.cpp"`, preserving 1:1 line numbers in compilation errors and DWARF debugger symbols for **GDB** and **LLDB**.
 - **Build System Depfile Sanitization**: Generated dependency files (`.d` / `-MF`) are automatically sanitized to preserve original source dependencies for Ninja and Make.
+- **Emoji Filename & Include Support**: Source files (`🚀.cpp`) and headers (`📦.hpp`) with emojis in their names are fully supported. Includes like `#include "📦.hpp"` are sanitized to ASCII aliases for host compiler compatibility while depfiles and `#line` directives preserve original emoji filenames for build tools and debuggers.
 - **CMake & Ninja Ready**: Integrates as `CMAKE_CXX_COMPILER` or via the bundled `emocxx-toolchain.cmake`.
 
 ---
@@ -68,6 +69,64 @@ int main() {
     return (💥 == 1000) ? 0 : 1;
 }
 ```
+
+### Full C++ Language Element Support
+
+Because `emocxx` operates at the lexical token boundary, emojis can be used anywhere an identifier is valid in C++:
+
+```cpp
+// 1. Classes with Constructors, Destructors, and Methods
+class 🤖 {
+public:
+    🤖() : 🔋(100) {}
+    ~🤖() {}
+    void ⚡() { 🔋 += 10; }
+private:
+    int 🔋;
+};
+
+// 2. Namespaces & Scoped Calls
+namespace 🌌 {
+    void 🚀() {}
+}
+// Call: 🌌::🚀();
+
+// 3. Enum Classes
+enum class 🚦 { 🔴, 🟡, 🟢 };
+auto signal = 🚦::🟢;
+
+// 4. Templates & Concepts (C++20)
+template<typename 📦>
+concept 📏 = requires(📦 item) { item.📐(); };
+
+template<📏 📦>
+class 🏭 { 📦 product; };
+
+// 5. User-Defined Literals (UDL)
+constexpr long double operator""_🚀(long double km) { return km * 1000.0; }
+auto distance = 5.0_🚀;
+```
+
+---
+
+## Architectural Limits & Boundaries
+
+Because `emocxx` operates as a transparent compiler proxy and source transpiler rather than a patched compiler fork, it has specific structural boundaries:
+
+| Language Feature / Use Case | Status | Explanation & Behavior |
+| :--- | :---: | :--- |
+| **Variables, Structs, Classes** | ✅ **Fully Supported** | Mangles deterministically to valid C++ identifiers (`_EMO_<hex>_`). |
+| **Functions, Methods, Constructors** | ✅ **Fully Supported** | Compiles to standard Itanium/MSVC mangled symbols. |
+| **Namespaces & Enum Classes** | ✅ **Fully Supported** | Scoped access (e.g. `🌌::🚀()`, `🚦::🟢`) works natively. |
+| **Templates & Concepts (C++20)** | ✅ **Fully Supported** | Valid across template parameter and concept constraint positions. |
+| **User-Defined Literals (`42_🚀`)** | ✅ **Fully Supported** | Supported via `operator""__EMO_..._` syntax. |
+| **Filenames & `#include "📦.hpp"`** | ✅ **Fully Supported** | Mirrored into shadow cache with ASCII aliases; `#line 1` preserves file names. |
+| **Debugger Stepping (GDB/LLDB)** | ✅ **Fully Supported** | Breakpoints set by source file and line (`b 🚀.cpp:9`) resolve 1:1. |
+| **Debugger Variable Print** | ⚠️ **Mangled Name** | LLDB/GDB prints `_EMO_1f680_ = 42` instead of `🚀 = 42` without a demangler script. |
+| **Macro Stringification (`#x`)** | ⚠️ **Mangled Name** | `#define STR(x) #x` evaluates `STR(🚀)` to `"_EMO_1f680_"`, not `"🚀"`. |
+| **Compiler Introspection (`__func__`)**| ⚠️ **Mangled Name** | `__func__` and `std::source_location` report the mangled ASCII symbol name. |
+| **Custom Emoji Operators (`a ➕ b`)** | ❌ **Unsupported** | C++ operator grammar is a fixed keyword set; emojis cannot create new operators. |
+| **Public API Headers (Unwrapped)** | ❌ **Unsupported** | External consumers compiling without `emocxx` will hit compiler lexical errors. |
 
 ---
 

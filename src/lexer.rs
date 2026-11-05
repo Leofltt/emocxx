@@ -53,6 +53,41 @@ pub fn transpile(input: &str) -> String {
     while i < len {
         let b = bytes[i];
 
+        // 0. Preprocessor include check: #include "..." or #include <...>
+        // Rewrites emoji file paths to mangled ASCII so compilers never reject non-ASCII includes
+        if b == b'#' {
+            let slice = &input[i..];
+            if let Some(rest) = slice.strip_prefix('#') {
+                let trimmed = rest.trim_start();
+                if trimmed.starts_with("include") {
+                    let after_include = &trimmed["include".len()..];
+                    if after_include.starts_with(' ') || after_include.starts_with('\t') {
+                        let inc_trimmed = after_include.trim_start();
+                        if inc_trimmed.starts_with('"') || inc_trimmed.starts_with('<') {
+                            let open_delim = inc_trimmed.chars().next().unwrap();
+                            let close_delim = if open_delim == '"' { '"' } else { '>' };
+                            if let Some(close_pos) = inc_trimmed[1..].find(close_delim) {
+                                let include_path = &inc_trimmed[1..=close_pos];
+                                let mangled_path = crate::mangler::mangle_emojis_in_identifier(include_path);
+
+                                let prefix_len = slice.len() - inc_trimmed.len();
+                                let total_len = prefix_len + 1 + close_pos + 1;
+
+                                out.push_str(&slice[..prefix_len]);
+                                out.push(open_delim);
+                                out.push_str(&mangled_path);
+                                out.push(close_delim);
+
+                                i += total_len;
+                                prev_char = Some(close_delim);
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 1. Raw string literal check: R"delimiter(
         // Preceded by not an identifier char (or start of file / whitespace / punctuation)
         if b == b'R' && i + 1 < len && bytes[i + 1] == b'"' {
