@@ -144,8 +144,8 @@ The resulting binary will be in `target/release/emocxx`.
 
 ### Method 1: Using the Bundled Toolchain
 ```bash
-cmake -B build -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/emocxx-toolchain.cmake \
+cmake -B build \
+  -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
   -DREAL_CXX=clang++
 
 cmake --build build
@@ -153,8 +153,8 @@ cmake --build build
 
 ### Method 2: Direct Command Line Invocation
 ```bash
-cmake -B build -G Ninja \
-  -DCMAKE_CXX_COMPILER=/path/to/target/release/emocxx \
+cmake -B build \
+  -DCMAKE_CXX_COMPILER=$PWD/target/release/emocxx \
   -DREAL_CXX=clang++
 
 cmake --build build
@@ -169,10 +169,15 @@ cmake --build build
 cargo test
 ```
 
-2. Build and run the acceptance test:
+2. Build release binary:
 ```bash
-cmake -B tests/acceptance/build -S tests/acceptance -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/emocxx-toolchain.cmake \
+cargo build --release
+```
+
+3. Configure and build the acceptance test:
+```bash
+cmake -B tests/acceptance/build -S tests/acceptance \
+  -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
   -DREAL_CXX=clang++
 
 cmake --build tests/acceptance/build
@@ -229,4 +234,4 @@ A complete [`.github/workflows/ci.yml`](.github/workflows/ci.yml) workflow is co
 
 ## License
 
-Dual-licensed under MIT or Apache-2.0.
+Creative Commons 0 1.0 Universal license free for all to use and have fun with

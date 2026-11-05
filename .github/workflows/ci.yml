@@ -35,7 +35,7 @@ jobs:
       - name: Run Acceptance Test (CMake + Ninja)
         run: |
           cmake -B tests/acceptance/build -S tests/acceptance -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=cmake/emocxx-toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/emocxx-toolchain.cmake \
             -DREAL_CXX=clang++
           cmake --build tests/acceptance/build
           ./tests/acceptance/build/test_app
