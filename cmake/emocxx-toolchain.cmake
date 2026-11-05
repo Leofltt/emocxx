@@ -19,3 +19,6 @@ set(CMAKE_CXX_COMPILER "${EMOCXX_BIN}")
 set(CMAKE_CXX_COMPILER_ARG1 "--real-cxx=${RESOLVED_REAL_CXX}")
 set(CMAKE_CXX_COMPILER_FORCED TRUE)
 
+# Prevent CMake from passing redundant -isystem /usr/include which disrupts host compiler system include ordering
+list(APPEND CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "/usr/include" "/usr/local/include")
+

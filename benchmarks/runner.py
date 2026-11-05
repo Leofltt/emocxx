@@ -116,6 +116,10 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         if cache_dir.exists():
             shutil.rmtree(cache_dir)
 
+        bench_env = os.environ.copy()
+        bench_env["EMOCXX_REAL_CXX"] = real_cxx
+        bench_env["REAL_CXX"] = real_cxx
+
         # Configure CMake flags based on mode
         cmd_cmake = [
             "cmake", "-S", str(repo_dir), "-B", str(build_dir), "-G", "Ninja"
@@ -125,12 +129,13 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         else:
             cmd_cmake.extend([
                 f"-DCMAKE_CXX_COMPILER={emocxx_bin}",
+                f"-DCMAKE_CXX_COMPILER_ARG1=--real-cxx={real_cxx}",
                 f"-DREAL_CXX={real_cxx}",
             ])
         cmd_cmake.extend(cmake_flags)
 
         # Measure Scenario A: CMake Configure
-        ret, t_cfg, out_cfg, err_cfg = run_cmd(cmd_cmake)
+        ret, t_cfg, out_cfg, err_cfg = run_cmd(cmd_cmake, env=bench_env)
         if ret != 0:
             details = err_cfg if err_cfg.strip() else out_cfg
             raise RuntimeError(f"CMake configure failed for {lib_name} ({mode}):\n{details}")
@@ -138,14 +143,14 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
 
         # Measure Scenario B: Clean Build
         cmd_build = ["ninja", "-C", str(build_dir), jobs_flag]
-        ret, t_clean, out_clean, err_clean = run_cmd(cmd_build)
+        ret, t_clean, out_clean, err_clean = run_cmd(cmd_build, env=bench_env)
         if ret != 0:
             details = err_clean if err_clean.strip() else out_clean
             raise RuntimeError(f"Clean build failed for {lib_name} ({mode}):\n{details}")
         clean_build_times.append(t_clean)
 
         # Measure Scenario C: Zero-Change Rebuild
-        ret, t_zero, out_zero, err_zero = run_cmd(["ninja", "-C", str(build_dir)])
+        ret, t_zero, out_zero, err_zero = run_cmd(["ninja", "-C", str(build_dir)], env=bench_env)
         if ret != 0:
             details = err_zero if err_zero.strip() else out_zero
             raise RuntimeError(f"Zero-change rebuild failed for {lib_name} ({mode}):\n{details}")
@@ -156,7 +161,7 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         if touch_rel and (repo_dir / touch_rel).exists():
             target_file = repo_dir / touch_rel
             target_file.touch()
-            ret, t_touch, out_touch, err_touch = run_cmd(cmd_build)
+            ret, t_touch, out_touch, err_touch = run_cmd(cmd_build, env=bench_env)
             if ret != 0:
                 details = err_touch if err_touch.strip() else out_touch
                 raise RuntimeError(f"Touch rebuild failed for {lib_name} ({mode}):\n{details}")
@@ -190,6 +195,10 @@ def main():
         print("    Please run `cargo build --release` first or supply --emocxx-bin.")
         sys.exit(1)
 
+    real_cxx = shutil.which(args.real_cxx)
+    if not real_cxx:
+        real_cxx = args.real_cxx
+
     bench_work_dir = root_dir / ".benchmarks"
     repos_dir = bench_work_dir / "repos"
     results_dir = root_dir / "benchmarks" / "results"
@@ -213,16 +222,16 @@ def main():
         print(f"\n--- Benchmarking: {lib_name} ---")
         repo_dir = ensure_cloned(lib_name, info, repos_dir)
 
-        print(f"[*] Running Baseline ({args.real_cxx})...")
+        print(f"[*] Running Baseline ({real_cxx})...")
         base = benchmark_scenario(
             lib_name, info, repo_dir, bench_work_dir, "baseline",
-            args.real_cxx, emocxx_bin, args.jobs, args.iterations
+            real_cxx, emocxx_bin, args.jobs, args.iterations
         )
 
         print("[*] Running emocxx Wrapper...")
         emo = benchmark_scenario(
             lib_name, info, repo_dir, bench_work_dir, "emocxx",
-            args.real_cxx, emocxx_bin, args.jobs, args.iterations
+            real_cxx, emocxx_bin, args.jobs, args.iterations
         )
 
         def overhead(emo_val, base_val):
@@ -249,11 +258,16 @@ def main():
 
     # Render Markdown Report
     print("\n\n========================= BENCHMARK RESULTS =========================")
+    header_line = "| Library | Clean Baseline (s) | Clean emocxx (s) | Overhead (s) | Overhead (%) | Zero-Rebuild Delta (ms) |"
+    sep_line = "| :--- | :--- | :--- | :--- | :--- | :--- |"
+    print(header_line)
+    print(sep_line)
+
     report_md = [
         "# emocxx Benchmark Report",
-        f"**Host Compiler**: `{args.real_cxx}` | **Jobs**: `{args.jobs}` | **Iterations**: `{args.iterations}`\n",
-        "| Library | Clean Baseline (s) | Clean emocxx (s) | Overhead (s) | Overhead (%) | Zero-Rebuild Delta (ms) |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- |",
+        f"**Host Compiler**: `{real_cxx}` | **Jobs**: `{args.jobs}` | **Iterations**: `{args.iterations}`\n",
+        header_line,
+        sep_line,
     ]
 
     for row in summary_rows:

@@ -47,6 +47,18 @@ impl ShadowCache {
         let mut mappings = Vec::new();
 
         for dir in include_dirs {
+            // Skip external system include directories (e.g., /usr, /opt/homebrew)
+            // Spec Section 4: Only local project header dependencies are shadowed.
+            let s = dir.to_string_lossy();
+            if s.starts_with("/usr")
+                || s.starts_with("/opt")
+                || s.starts_with("/Library")
+                || s.starts_with("/System")
+                || s.starts_with("/Applications")
+            {
+                continue;
+            }
+
             if dir.is_dir() {
                 self.mirror_dir_recursive(dir, dir, &shadow_inc, &mut visited, &mut mappings)?;
             }

@@ -36,6 +36,23 @@ impl CompilerInvocation {
                 if let Some(val) = iter.next() {
                     real_cxx_override = Some(PathBuf::from(val));
                 }
+            } else if arg == "-isystem" {
+                if let Some(next_val) = iter.peek() {
+                    let trimmed = next_val.trim_end_matches('/');
+                    if trimmed == "/usr/include" {
+                        // Drop redundant -isystem /usr/include because it disrupts host compiler
+                        // system header ordering on Linux (e.g. Clang + libstdc++ #include_next <stdlib.h>).
+                        iter.next();
+                        continue;
+                    }
+                }
+                clean_args.push(arg.clone());
+            } else if let Some(val) = arg.strip_prefix("-isystem") {
+                let trimmed = val.strip_prefix('=').unwrap_or(val).trim_end_matches('/');
+                if trimmed == "/usr/include" {
+                    continue;
+                }
+                clean_args.push(arg.clone());
             } else {
                 clean_args.push(arg.clone());
             }
@@ -63,7 +80,7 @@ impl CompilerInvocation {
                 if !val.is_empty() {
                     output_file = Some(PathBuf::from(val));
                 }
-            } else if (arg == "-I" || arg == "-iquote" || arg == "-isystem") && i + 1 < clean_args.len() {
+            } else if (arg == "-I" || arg == "-iquote") && i + 1 < clean_args.len() {
                 include_dirs.push(PathBuf::from(&clean_args[i + 1]));
                 i += 1;
             } else if let Some(val) = arg.strip_prefix("-I") {
@@ -74,10 +91,11 @@ impl CompilerInvocation {
                 if !val.is_empty() {
                     include_dirs.push(PathBuf::from(val));
                 }
-            } else if let Some(val) = arg.strip_prefix("-isystem") {
-                if !val.is_empty() {
-                    include_dirs.push(PathBuf::from(val));
-                }
+            } else if arg == "-isystem" && i + 1 < clean_args.len() {
+                // -isystem denotes external/system libraries, not local emoji project headers
+                i += 1;
+            } else if arg.starts_with("-isystem") {
+                // Ignore inline -isystem<dir> from shadow scanning
             } else if arg == "-MF" && i + 1 < clean_args.len() {
                 depfile = Some(PathBuf::from(&clean_args[i + 1]));
                 i += 1;
