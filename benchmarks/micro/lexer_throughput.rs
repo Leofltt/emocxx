@@ -50,8 +50,8 @@ fn main() {
         let bytes = code.len();
         let mb = bytes as f64 / (1024.0 * 1024.0);
 
-        // Warm up
-        let _ = transpile(&code[..1000.min(code.len())]);
+        // Warm up on a small prefix safely aligned to char boundary
+        let _ = transpile(&code);
 
         let start = Instant::now();
         let transpiled = transpile(&code);
