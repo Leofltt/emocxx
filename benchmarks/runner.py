@@ -36,8 +36,9 @@ LIBRARIES = {
     "json": {
         "url": "https://github.com/nlohmann/json.git",
         "tag": "v3.11.3",
-        "cmake_args": ["-DJSON_BuildTests=OFF"],
-        "touch_file": None,
+        "consumer_suite": "benchmarks/suites/json_stress",
+        "cmake_args": [],
+        "touch_file": "src/json_parse.cpp",
     },
     "simdjson": {
         "url": "https://github.com/simdjson/simdjson.git",
@@ -66,12 +67,15 @@ def run_cmd(cmd, cwd=None, env=None, capture=True):
     elapsed = time.perf_counter() - start
     return p.returncode, elapsed, p.stdout or "", p.stderr or ""
 
-def stats(values):
+def stats(values, drop_outliers=False):
     """Computes mean and stddev for a list of floats."""
     if not values:
         return 0.0, 0.0
-    mean = sum(values) / len(values)
-    variance = sum((x - mean) ** 2 for x in values) / len(values) if len(values) > 1 else 0.0
+    sorted_vals = sorted(values)
+    if drop_outliers and len(sorted_vals) >= 5:
+        sorted_vals = sorted_vals[1:-1]
+    mean = sum(sorted_vals) / len(sorted_vals)
+    variance = sum((x - mean) ** 2 for x in sorted_vals) / len(sorted_vals) if len(sorted_vals) > 1 else 0.0
     return mean, math.sqrt(variance)
 
 def ensure_cloned(lib_name, info, repos_dir):
@@ -91,9 +95,14 @@ def ensure_cloned(lib_name, info, repos_dir):
         ret, _, _, err = run_cmd(cmd)
         if ret != 0:
             raise RuntimeError(f"Failed to clone {lib_name}: {err}")
+
+    if "consumer_suite" in info:
+        root_dir = repos_dir.parent.parent
+        return (root_dir / info["consumer_suite"]).resolve()
+
     return dest
 
-def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocxx_bin, jobs, iterations):
+def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocxx_bin, jobs, iterations, warmup=1, drop_outliers=False):
     """Runs benchmark iterations for a specific library in baseline or emocxx mode."""
     build_dir = work_dir / f"build_{lib_name}_{mode}"
 
@@ -104,8 +113,15 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
 
     cmake_flags = info.get("cmake_args", [])
     jobs_flag = f"-j{jobs}"
+    total_runs = warmup + iterations
 
-    for it in range(1, iterations + 1):
+    for run_idx in range(1, total_runs + 1):
+        is_warmup = run_idx <= warmup
+        if is_warmup:
+            print(f"  [{mode}] Warmup {run_idx}/{warmup}...")
+        else:
+            print(f"  [{mode}] Iteration {run_idx - warmup}/{iterations}...")
+
         # 1. Clean build directory
         if build_dir.exists():
             shutil.rmtree(build_dir)
@@ -139,7 +155,8 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         if ret != 0:
             details = err_cfg if err_cfg.strip() else out_cfg
             raise RuntimeError(f"CMake configure failed for {lib_name} ({mode}):\n{details}")
-        cmake_times.append(t_cfg)
+        if not is_warmup:
+            cmake_times.append(t_cfg)
 
         # Measure Scenario B: Clean Build
         cmd_build = ["ninja", "-C", str(build_dir), jobs_flag]
@@ -147,14 +164,16 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
         if ret != 0:
             details = err_clean if err_clean.strip() else out_clean
             raise RuntimeError(f"Clean build failed for {lib_name} ({mode}):\n{details}")
-        clean_build_times.append(t_clean)
+        if not is_warmup:
+            clean_build_times.append(t_clean)
 
         # Measure Scenario C: Zero-Change Rebuild
         ret, t_zero, out_zero, err_zero = run_cmd(["ninja", "-C", str(build_dir)], env=bench_env)
         if ret != 0:
             details = err_zero if err_zero.strip() else out_zero
             raise RuntimeError(f"Zero-change rebuild failed for {lib_name} ({mode}):\n{details}")
-        zero_change_times.append(t_zero)
+        if not is_warmup:
+            zero_change_times.append(t_zero)
 
         # Measure Scenario D: Incremental 1-file Touch (if configured)
         touch_rel = info.get("touch_file")
@@ -165,13 +184,14 @@ def benchmark_scenario(lib_name, info, repo_dir, work_dir, mode, real_cxx, emocx
             if ret != 0:
                 details = err_touch if err_touch.strip() else out_touch
                 raise RuntimeError(f"Touch rebuild failed for {lib_name} ({mode}):\n{details}")
-            touch_times.append(t_touch)
+            if not is_warmup:
+                touch_times.append(t_touch)
 
     return {
-        "cmake_cfg": stats(cmake_times),
-        "clean_build": stats(clean_build_times),
-        "zero_change": stats(zero_change_times),
-        "touch_build": stats(touch_times) if touch_times else None,
+        "cmake_cfg": stats(cmake_times, drop_outliers),
+        "clean_build": stats(clean_build_times, drop_outliers),
+        "zero_change": stats(zero_change_times, drop_outliers),
+        "touch_build": stats(touch_times, drop_outliers) if touch_times else None,
     }
 
 def main():
@@ -180,6 +200,10 @@ def main():
                         help="Library to benchmark (default: fmt)")
     parser.add_argument("--iterations", type=int, default=3,
                         help="Number of iterations for statistical averaging (default: 3)")
+    parser.add_argument("--warmup", type=int, default=1,
+                        help="Number of unmeasured warmup iterations to prime OS/compiler caches (default: 1)")
+    parser.add_argument("--drop-outliers", action="store_true",
+                        help="Drop highest and lowest timing samples when iterations >= 5")
     parser.add_argument("--real-cxx", default=os.getenv("REAL_CXX", "clang++"),
                         help="Path or name of real host compiler (default: clang++)")
     parser.add_argument("--emocxx-bin", default=None,
@@ -213,6 +237,8 @@ def main():
     print(f" emocxx Binary : {emocxx_bin}")
     print(f" Parallel Jobs : {args.jobs}")
     print(f" Iterations    : {args.iterations}")
+    print(f" Warmup Runs   : {args.warmup}")
+    print(f" Drop Outliers : {args.drop_outliers}")
     print("=================================================================\n")
 
     summary_rows = []
@@ -225,17 +251,20 @@ def main():
         print(f"[*] Running Baseline ({real_cxx})...")
         base = benchmark_scenario(
             lib_name, info, repo_dir, bench_work_dir, "baseline",
-            real_cxx, emocxx_bin, args.jobs, args.iterations
+            real_cxx, emocxx_bin, args.jobs, args.iterations,
+            warmup=args.warmup, drop_outliers=args.drop_outliers
         )
 
         print("[*] Running emocxx Wrapper...")
         emo = benchmark_scenario(
             lib_name, info, repo_dir, bench_work_dir, "emocxx",
-            real_cxx, emocxx_bin, args.jobs, args.iterations
+            real_cxx, emocxx_bin, args.jobs, args.iterations,
+            warmup=args.warmup, drop_outliers=args.drop_outliers
         )
 
         def overhead(emo_val, base_val):
-            if base_val <= 0:
+            # Guard against division by near-zero process launch noise (<50ms)
+            if base_val < 0.05:
                 return 0.0
             return ((emo_val - base_val) / base_val) * 100.0
 
@@ -265,15 +294,21 @@ def main():
 
     report_md = [
         "# emocxx Benchmark Report",
-        f"**Host Compiler**: `{real_cxx}` | **Jobs**: `{args.jobs}` | **Iterations**: `{args.iterations}`\n",
+        f"**Host Compiler**: `{real_cxx}` | **Jobs**: `{args.jobs}` | **Iterations**: `{args.iterations}` (Warmup: `{args.warmup}`)\n",
         header_line,
         sep_line,
     ]
 
     for row in summary_rows:
-        line = f"| **{row['lib']}** | {row['base_clean']:.2f}s | {row['emo_clean']:.2f}s | +{row['clean_diff']:.2f}s | **{row['clean_pct']:+.1f}%** | {row['zero_diff_ms']:+.1f}ms |"
+        pct_str = "~0.0%*" if row['base_clean'] < 0.05 else f"{row['clean_pct']:+.1f}%"
+        line = f"| **{row['lib']}** | {row['base_clean']:.2f}s | {row['emo_clean']:.2f}s | {row['clean_diff']:+.2f}s | **{pct_str}** | {row['zero_diff_ms']:+.1f}ms |"
         report_md.append(line)
         print(line)
+
+    if any(r['base_clean'] < 0.05 for r in summary_rows):
+        note = "\n\\* *Times < 0.05s are within sub-millisecond process startup noise.*"
+        report_md.append(note)
+        print(note)
 
     report_path = results_dir / "latest_report.md"
     report_path.write_text("\n".join(report_md) + "\n")
